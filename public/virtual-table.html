@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>React 虚拟列表表格示例</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+        background: #f5f7fb;
+        color: #2f3542;
+      }
+
+      .page {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 32px 24px 48px;
+      }
+
+      h1 {
+        margin: 0 0 16px;
+        font-size: 28px;
+        letter-spacing: 0.5px;
+      }
+
+      p.tip {
+        margin: 0 0 24px;
+        color: #57606f;
+      }
+
+      .control-bar {
+        margin-bottom: 16px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .control-bar label {
+        font-size: 14px;
+        color: #57606f;
+      }
+
+      .control-bar input {
+        padding: 8px 12px;
+        border: 1px solid #cfd5e1;
+        border-radius: 6px;
+        font-size: 14px;
+        min-width: 220px;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .control-bar input:focus {
+        outline: none;
+        border-color: #1e90ff;
+        box-shadow: 0 0 0 2px rgba(30, 144, 255, 0.18);
+      }
+
+      .table-card {
+        background: #ffffff;
+        border-radius: 12px;
+        border: 1px solid #e5eaf2;
+        box-shadow: 0 18px 28px -20px rgba(31, 45, 61, 0.28);
+        padding: 20px;
+        overflow-x: auto;
+      }
+
+      .stats {
+        margin-bottom: 12px;
+        font-size: 14px;
+        color: #747d8c;
+      }
+
+      .vt-table {
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid #e5eaf2;
+      }
+
+      .vt-header {
+        display: grid;
+        background: linear-gradient(135deg, #f8faff 0%, #eef3fb 100%);
+        border-bottom: 1px solid #d4dcec;
+        font-weight: 600;
+        font-size: 13px;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+        color: #1f2d3d;
+      }
+
+      .vt-header-cell,
+      .vt-cell {
+        padding: 0 14px;
+        display: flex;
+        align-items: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .vt-row {
+        display: grid;
+        align-items: center;
+        border-bottom: 1px solid #edf1f9;
+        transition: background-color 0.18s ease, transform 0.18s ease;
+      }
+
+      .vt-row:last-child {
+        border-bottom: none;
+      }
+
+      .vt-row.even {
+        background: #ffffff;
+      }
+
+      .vt-row.odd {
+        background: #fdfefe;
+      }
+
+      .vt-row:hover {
+        background: rgba(30, 144, 255, 0.08);
+        transform: translate3d(4px, 0, 0);
+      }
+
+      .vt-empty {
+        padding: 40px;
+        text-align: center;
+        color: #a4b0be;
+        font-size: 15px;
+      }
+
+      @media (max-width: 768px) {
+        .page {
+          padding: 24px 16px 40px;
+        }
+
+        .table-card {
+          padding: 16px 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>虚拟滚动表格</h1>
+      <p class="tip">
+        使用 React + react-window 实现的高性能表格示例，支持万级数据流畅滚动和关键字筛选。
+      </p>
+      <div id="root"></div>
+    </div>
+
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-window/umd/react-window.development.js"></script>
+    <script>
+      const { useMemo, useState } = React;
+      const { createRoot } = ReactDOM;
+      const { FixedSizeList } = window.ReactWindow;
+
+      const columns = [
+        { key: 'id', title: 'ID', width: 80, align: 'center' },
+        { key: 'name', title: '姓名', width: 160 },
+        { key: 'email', title: '邮箱', width: 260 },
+        { key: 'city', title: '城市', width: 160 },
+        { key: 'company', title: '公司', width: 220 }
+      ];
+
+      function generateMockData(size) {
+        const cities = ['上海', '北京', '深圳', '广州', '杭州', '苏州', '成都', '厦门'];
+        const companies = ['ByteTech', 'Nova Labs', 'FutureX', 'HyperLink', 'Skyline', 'VisionGo'];
+        const firstNames = [
+          '李',
+          '王',
+          '张',
+          '刘',
+          '陈',
+          '杨',
+          '赵',
+          '黄',
+          '周',
+          '吴',
+          '徐',
+          '孙'
+        ];
+        const lastNames = [
+          '晓彤',
+          '子涵',
+          '梓萱',
+          '一凡',
+          '文博',
+          '宇轩',
+          '浩然',
+          '诗涵',
+          '婧琪',
+          '雨泽',
+          '子墨',
+          '沐宸'
+        ];
+
+        const records = [];
+        for (let i = 0; i < size; i++) {
+          const id = (i + 1).toString().padStart(6, '0');
+          const name = `${firstNames[i % firstNames.length]}${lastNames[i % lastNames.length]}`;
+          const email = `${name.toLowerCase()}${i}@example.com`;
+          const city = cities[i % cities.length];
+          const company = companies[i % companies.length];
+          records.push({ id, name, email, city, company });
+        }
+        return records;
+      }
+
+      const sourceData = generateMockData(20000);
+
+      const getItemKey = (index, data) => data.rows[index].id || index;
+
+      const VirtualizedRow = ({ index, style, data }) => {
+        const { rows, columns, gridTemplate, totalWidth } = data;
+        const row = rows[index];
+        const rowClassName = index % 2 === 0 ? 'vt-row even' : 'vt-row odd';
+        const rowStyle = {
+          ...style,
+          width: totalWidth,
+          display: 'grid',
+          gridTemplateColumns: gridTemplate,
+          alignItems: 'center'
+        };
+
+        return (
+          <div className={rowClassName} style={rowStyle}>
+            {columns.map((column) => {
+              const cellStyle = {
+                justifyContent:
+                  column.align === 'right'
+                    ? 'flex-end'
+                    : column.align === 'center'
+                    ? 'center'
+                    : 'flex-start',
+                textAlign: column.align || 'left'
+              };
+              return (
+                <div key={column.key} className="vt-cell" style={cellStyle}>
+                  {row[column.key]}
+                </div>
+              );
+            })}
+          </div>
+        );
+      };
+
+      function VirtualizedTable({ columns, rows, height, rowHeight }) {
+        if (!rows.length) {
+          return <div className="vt-empty">没有符合条件的数据</div>;
+        }
+
+        const totalWidth = useMemo(
+          () => columns.reduce((sum, col) => sum + (col.width || 160), 0),
+          [columns]
+        );
+        const gridTemplate = useMemo(
+          () => columns.map((col) => `${col.width || 160}px`).join(' '),
+          [columns]
+        );
+
+        const itemData = useMemo(
+          () => ({
+            columns,
+            rows,
+            gridTemplate,
+            totalWidth
+          }),
+          [columns, rows, gridTemplate, totalWidth]
+        );
+
+        return (
+          <div className="vt-table" style={{ width: totalWidth }}>
+            <div
+              className="vt-header"
+              style={{ gridTemplateColumns: gridTemplate, width: totalWidth }}
+            >
+              {columns.map((column) => (
+                <div
+                  key={column.key}
+                  className="vt-header-cell"
+                  style={{ textAlign: column.align || 'left' }}
+                >
+                  {column.title}
+                </div>
+              ))}
+            </div>
+            <FixedSizeList
+              height={height}
+              itemData={itemData}
+              itemCount={rows.length}
+              itemSize={rowHeight}
+              width={totalWidth}
+              overscanCount={8}
+              itemKey={getItemKey}
+            >
+              {VirtualizedRow}
+            </FixedSizeList>
+          </div>
+        );
+      }
+
+      function App() {
+        const [keyword, setKeyword] = useState('');
+
+        const filteredRows = useMemo(() => {
+          if (!keyword.trim()) {
+            return sourceData;
+          }
+          const lowerKeyword = keyword.trim().toLowerCase();
+          return sourceData.filter((row) =>
+            columns.some((col) => {
+              const value = row[col.key];
+              if (value == null) return false;
+              return String(value).toLowerCase().includes(lowerKeyword);
+            })
+          );
+        }, [keyword]);
+
+        return (
+          <>
+            <div className="control-bar">
+              <label htmlFor="keyword">关键字筛选：</label>
+              <input
+                id="keyword"
+                type="search"
+                placeholder="支持按 ID / 姓名 / 邮箱 / 城市 / 公司筛选"
+                value={keyword}
+                onChange={(event) => setKeyword(event.target.value)}
+              />
+            </div>
+            <div className="table-card">
+              <div className="stats">
+                当前共 {filteredRows.length.toLocaleString()} 条数据
+              </div>
+              <VirtualizedTable columns={columns} rows={filteredRows} height={520} rowHeight={44} />
+            </div>
+          </>
+        );
+      }
+
+      const root = createRoot(document.getElementById('root'));
+      root.render(<App />);
+    </script>
+  </body>
+</html>
